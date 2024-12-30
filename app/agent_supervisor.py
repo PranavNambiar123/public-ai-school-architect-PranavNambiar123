@@ -3,6 +3,9 @@
 from typing import Annotated, Any, Dict, List, Optional, Sequence, TypedDict
 import functools
 import operator
+import requests
+import asyncio
+import aiohttp
 
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.messages import BaseMessage, HumanMessage
@@ -21,9 +24,34 @@ tavily_tool = TavilySearchResults(max_results=5)
 # This tool executes code locally, which can be unsafe. Use with caution:
 python_repl_tool = PythonREPLTool()
 
+@tool
+def make_post_request(url: str, data: dict) -> str:
+    """Make a POST request to the specified URL with the given data."""
+    try:
+        response = requests.post(url, json=data)
+        return f"Status: {response.status_code}, Response: {response.text}"
+    except Exception as e:
+        return f"Error making request: {str(e)}"
+
+@tool
+async def stress_test_endpoint(url: str, iterations: int = 10) -> str:
+    """Make multiple concurrent POST requests to test endpoint stability."""
+    async def single_request(session, url):
+        try:
+            async with session.post(url) as response:
+                return response.status == 200
+        except:
+            return False
+
+    async with aiohttp.ClientSession() as session:
+        tasks = [single_request(session, url) for _ in range(iterations)]
+        results = await asyncio.gather(*tasks)
+        success_rate = sum(results) / len(results)
+        return f"Success rate: {success_rate * 100}%, {sum(results)}/{len(results)} requests succeeded"
+
 # Step 3: Define the system prompt for the supervisor agent
 # Customize the members list as needed.
-members = ["Researcher", "Coder", "Reviewer", "Tester"]
+members = ["Researcher", "Coder", "Reviewer", "Tester", "StressTester"]
 
 system_prompt = f"""
 You are the supervisor of a team of {', '.join(members)}.
@@ -108,7 +136,14 @@ def agent_node(state, agent, name):
 researcher_agent = create_agent(llm, [tavily_tool], "You are a web researcher")
 researcher_node = functools.partial(agent_node, agent=researcher_agent, name="Researcher")
 
-coder_agent = create_agent(llm, [python_repl_tool], "You generate safe code to analyze data with pandas and generate charts using matplotlib")
+coder_agent = create_agent(
+    llm,
+    [python_repl_tool],
+    """You are an expert Python developer specializing in FastAPI endpoints.
+    Your main task is to create and implement POST endpoints with proper request/response models.
+    Always include proper error handling and input validation.
+    Use FastAPI best practices and type hints."""
+)
 coder_node = functools.partial(agent_node, agent=coder_agent, name="Coder")
 
 reviewer_agent = create_agent(llm, [tavily_tool], "You are a senior developer. You excel at code review. You provide detailed and actionable feedback.")
@@ -116,6 +151,16 @@ reviewer_node = functools.partial(agent_node, agent=reviewer_agent, name="Review
 
 tester_agent = create_agent(llm, [python_repl_tool], "You are a safe developer who generates test cases using unittest.")
 tester_node = functools.partial(agent_node, agent=tester_agent, name="Tester")
+
+stress_tester_agent = create_agent(
+    llm,
+    [make_post_request, stress_test_endpoint],
+    """You are a performance testing specialist.
+    Your role is to stress test POST endpoints by making multiple concurrent requests.
+    Always perform 10 concurrent requests to test endpoint stability.
+    Report success rates and any failures encountered."""
+)
+stress_tester_node = functools.partial(agent_node, agent=stress_tester_agent, name="StressTester")
 
 # Step 13: Define the workflow using StateGraph
 # Add nodes and their corresponding functions to the workflow.
@@ -125,6 +170,7 @@ workflow.add_node("Researcher", researcher_node)
 workflow.add_node("Coder", coder_node)
 workflow.add_node("Reviewer", reviewer_node)
 workflow.add_node("Tester", tester_node)
+workflow.add_node("StressTester", stress_tester_node)
 
 # Step 14: Add edges to the workflow
 # Ensure that all workers report back to the supervisor.
