@@ -1,5 +1,9 @@
 # AI School Architect
 
+## What was performed?
+
+Added custom agents to the workflow for more finetuned code generation. Demo video: https://drive.google.com/file/d/1ig2LgvY4KA_rHLG5RlIb8PnOQrdSMSo2/view?usp=sharing
+
 ## Overview
 In this project, we developed AI School Architect to orchestrate AI agents performing various tasks such as research, code review, testing, and coding. This setup enhances productivity by delegating specific tasks to specialized agents, streamlining workflows, and ensuring accuracy and efficiency.
 
