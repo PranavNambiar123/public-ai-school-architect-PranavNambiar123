@@ -55,8 +55,7 @@ prompt = ChatPromptTemplate.from_messages(
         ("system", system_prompt),
         MessagesPlaceholder(variable_name="messages"),
         ("system", f"Given the conversation above who should act next?\n"
-                  f"Or should we FINISH? Select one of {', '.join(options)}"),
-        ("human", "{input}"),
+                  f"Or should we FINISH? Select one of {', '.join(options)}")
     ]
 ).partial(options=str(options), members=', '.join(members))
 
