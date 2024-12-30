@@ -23,14 +23,15 @@ python_repl_tool = PythonREPLTool()
 
 # Step 3: Define the system prompt for the supervisor agent
 # Customize the members list as needed.
-members = ["Researcher", "Coder", "Reviewer", "QA Tester"]
+members = ["Researcher", "Coder", "Reviewer", "Tester"]
 
 system_prompt = f"""
 You are the supervisor of a team of {', '.join(members)}.
-You are responsible for ensuring that the team members perform their tasks in a timely and efficient manner.
+You are responsible for coordinating the team to complete tasks efficiently.
 You have the following members: {', '.join(members)}.
-You need to coordinate the team members to ensure that they perform their tasks in a timely and efficient manner.
-Each worker will perform the task and respond with their results. When finished respond with FINISH.
+Each worker will perform their assigned task and provide results.
+You will analyze their output and decide the next step or finish when the task is complete.
+When all required work is done, respond with FINISH.
 """
 
 # Step 4: Define options for the supervisor to choose from
@@ -64,7 +65,7 @@ prompt = ChatPromptTemplate.from_messages(
 
 # Step 7: Initialize the language model
 # Choose the model you need, e.g., "gpt-4o"
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4")
 
 # Step 8: Create the supervisor chain
 # Define how the supervisor chain will process messages.
@@ -78,6 +79,7 @@ supervisor_chain = (
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     next: str
+    final_output: Optional[str] = None
 
 # Step 10: Function to create an agent
 # Fill in the system prompt and tools for each agent you need to create.
@@ -113,7 +115,7 @@ coder_node = functools.partial(agent_node, agent=coder_agent, name="Coder")
 reviewer_agent = create_agent(llm, [tavily_tool], "You are a senior developer. You excel at code review. You provide detailed and actionable feedback.")
 reviewer_node = functools.partial(agent_node, agent=reviewer_agent, name="Reviewer")
 
-tester_agent = create_agent(llm, [python_repl_tool], "You are safe developer who generates sage classes using unittest.")
+tester_agent = create_agent(llm, [python_repl_tool], "You are a safe developer who generates test cases using unittest.")
 tester_node = functools.partial(agent_node, agent=tester_agent, name="Tester")
 
 # Step 13: Define the workflow using StateGraph
@@ -123,7 +125,7 @@ workflow.add_node("supervisor", supervisor_chain)
 workflow.add_node("Researcher", researcher_node)
 workflow.add_node("Coder", coder_node)
 workflow.add_node("Reviewer", reviewer_node)
-workflow.add_node("QA Tester", tester_node)
+workflow.add_node("Tester", tester_node)
 
 # Step 14: Add edges to the workflow
 # Ensure that all workers report back to the supervisor.
