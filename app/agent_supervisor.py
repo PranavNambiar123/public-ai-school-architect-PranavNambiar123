@@ -118,7 +118,7 @@ tester_node = functools.partial(agent_node, agent=tester_agent, name="Tester")
 
 # Step 13: Define the workflow using StateGraph
 # Add nodes and their corresponding functions to the workflow.
-workflow = StateGraph()
+workflow = StateGraph(AgentState)
 workflow.add_node("supervisor", supervisor_chain)
 workflow.add_node("Researcher", researcher_node)
 workflow.add_node("Coder", coder_node)
