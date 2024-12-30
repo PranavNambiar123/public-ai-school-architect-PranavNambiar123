@@ -54,13 +54,12 @@ prompt = ChatPromptTemplate.from_messages(
         ("system", system_prompt),
         MessagesPlaceholder(variable_name="messages"),
         {
-            f"system",
-            f"Given the conversation above who should act next?",
-            f"Or should we FINISH? Select one of {options}",
+            "system": f"Given the conversation above who should act next?\n"
+            f"Or should we FINISH? Select one of {', '.join(options)}"
         },
         ("human", "{input}"),
     ]
-).partial(options=str(options), members=', '.join(members))
+)
 
 # Step 6: Define the prompt for the supervisor agent
 # Customize the prompt if needed.
